@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Book Rating Predictor - AI Project</title>
+  <script src="https://unpkg.com/brain.js"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #2c3e50, #4ca1af);
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      background: white;
+      width: 600px;
+      margin: 80px auto;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    p {
+      color: #555;
+      margin-bottom: 20px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      resize: none;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 12px 25px;
+      background-color: #2c3e50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: #1a252f;
+    }
+
+    #result {
+      margin-top: 30px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .stars {
+      font-size: 30px;
+      margin-top: 10px;
+      color: gold;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>Book Rating Predictor</h1>
+  <p>Write your opinion about the book. The system will predict a rating from 1 to 5 stars.</p>
+
+  <textarea id="inputText" placeholder="Enter book review..."></textarea>
+  <br>
+  <button onclick="predict()">Predict Rating</button>
+
+  <div id="result"></div>
+  <div class="stars" id="stars"></div>
+</div>
+
+<script>
+
+const positiveWords = ["amazing","excellent","fantastic","great","love","wonderful","brilliant","incredible","masterpiece"];
+const negativeWords = ["bad","terrible","boring","awful","hate","poor","disappointing","worst","dull"];
+
+function clean(text) {
+  return text.toLowerCase().replace(/[^a-z\s]/g, "");
+}
+
+function extractFeatures(text) {
+  const words = clean(text).split(/\s+/);
+  let pos = 0;
+  let neg = 0;
+
+  words.forEach(word => {
+    if (positiveWords.includes(word)) pos++;
+    if (negativeWords.includes(word)) neg++;
+  });
+
+  const total = words.length || 1;
+
+  return {
+    positiveRatio: pos / total,
+    negativeRatio: neg / total,
+    length: total / 100
+  };
+}
+
+const net = new brain.NeuralNetwork({ hiddenLayers: [8] });
+
+const trainingData = [
+  { input: extractFeatures("this book is amazing and wonderful"), output: { one:0, two:0, three:0, four:0.8, five:1 } },
+  { input: extractFeatures("fantastic story and brilliant writing"), output: { one:0, two:0, three:0, four:0.7, five:1 } },
+  { input: extractFeatures("it was good but not great"), output: { one:0, two:0, three:0.6, four:0.4, five:0 } },
+  { input: extractFeatures("boring and dull book"), output: { one:0.9, two:0.7, three:0, four:0, five:0 } },
+  { input: extractFeatures("terrible and disappointing"), output: { one:1, two:0.6, three:0, four:0, five:0 } }
+];
+
+net.train(trainingData, { iterations: 3000 });
+
+function predict() {
+  const text = document.getElementById("inputText").value;
+  if (!text.trim()) return;
+
+  const features = extractFeatures(text);
+  const output = net.run(features);
+
+  const ratings = ["one","two","three","four","five"];
+  let maxRating = "one";
+  let maxValue = 0;
+
+  ratings.forEach(r => {
+    if (output[r] > maxValue) {
+      maxValue = output[r];
+      maxRating = r;
+    }
+  });
+
+  const ratingMap = {
+    one:1,
+    two:2,
+    three:3,
+    four:4,
+    five:5
+  };
+
+  const stars = "⭐".repeat(ratingMap[maxRating]);
+
+  document.getElementById("result").innerText =
+    "Predicted Rating: " + ratingMap[maxRating] + " Stars (" + (maxValue*100).toFixed(1) + "% confidence)";
+
+  document.getElementById("stars").innerText = stars;
+}
+
+</script>
+
+</body>
+</html>
